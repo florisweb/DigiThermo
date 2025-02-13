@@ -43,7 +43,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       lastHeartBeat = millis();
 
       // Authentication request
-      webSocket.sendTXT("{\"id\":\"" + deviceId + "\", \"key\": \"" + deviceKey + "\"}");
+      webSocket.sendTXT("{\"id\":\"" + deviceId + "\", \"key\": \"" + deviceKey + "\", \"requestId\": \"" + String(random(0, 10000)) + "\"}");
       break;
     case WStype_TEXT:
       Serial.printf("[WSc] get text: %s\n", payload);
@@ -52,11 +52,11 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         DynamicJsonDocument doc(1024);
         deserializeJson(doc, payload);
 
-        if (doc["type"] == "identify") 
+        if (doc["type"] == "identify")
         {
-          digitalWrite(LED_BUILTIN, HIGH);
+          //          digitalWrite(LED_BUILTIN, HIGH);
           delay(400);
-          digitalWrite(LED_BUILTIN, LOW);
+          //          digitalWrite(LED_BUILTIN, LOW);
           return;
         }
         if (doc["type"] == "heartbeat")
@@ -69,12 +69,14 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       } else {
         DynamicJsonDocument doc(1024);
         deserializeJson(doc, payload);
-        String error = doc["error"];
-        String packetType = doc["type"];
+
+        String error = doc["response"]["error"];
+        String packetType = doc["response"]["type"];
 
         Serial.print("Error: ");
         Serial.println(error);
-        if (packetType == "auth" && doc["data"] == true)
+
+        if (packetType == "auth" && doc["response"]["data"] == true)
         {
           Serial.println("Successfully authenticated.");
           authenticated = true;
@@ -103,20 +105,24 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 
 void connectionManager::setup(const char* _ssid, const char* _password, const String _deviceId, const String _deviceKey, void _onMessage(DynamicJsonDocument message)) {
-  pinMode(LED_BUILTIN, OUTPUT);
+  //  pinMode(LED_BUILTIN, OUTPUT);
   deviceId            = _deviceId;
   deviceKey           = _deviceKey;
   onMessagePointer    = _onMessage;
 
   Serial.begin(115200);
   Serial.setDebugOutput(true);
+  Serial.println("Setting up...");
 
   WiFiMulti.addAP(_ssid, _password);
+  Serial.print("Looking for wifi...");
   while (WiFiMulti.run() != WL_CONNECTED)
   {
+    Serial.print(".");
     delay(100);
   }
 
+  Serial.println("Connecting to server");
   webSocket.begin(serverIP, serverPort, "/");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000); // try every 5000 again if connection has failed
@@ -134,13 +140,12 @@ bool connectionManager::isAuthenticated() {
 
 long deltaHeartbeat = 0;
 void connectionManager::loop() {
-//  deltaHeartbeat = millis() - lastHeartBeat;
-//  if (deltaHeartbeat > heartbeatFrequency * 2 && webSocket.isConnected())
-//  {
-//    Serial.println("Disconnected due to 2 missing heartbeats"); 
-//    webSocket.disconnect();
-//  }
+  deltaHeartbeat = millis() - lastHeartBeat;
+  //  if (deltaHeartbeat > heartbeatFrequency * 2 && webSocket.isConnected())
+  //  {
+  //    Serial.println("Disconnected due to 2 missing heartbeats");
+  //    webSocket.disconnect();
+  //  }
 
-  
   webSocket.loop();
 }
